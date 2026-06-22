@@ -10,10 +10,17 @@
 [![ABK App](https://img.shields.io/github/actions/workflow/status/xingguangcuican6666/ABK/build-abk-app.yml?label=ABK%20App&style=flat-square&logo=android&logoColor=white)](https://github.com/xingguangcuican6666/ABK/actions/workflows/build-abk-app.yml)
 [![KernelSU](https://img.shields.io/badge/KernelSU-Supported-5AA300?style=flat-square)](https://kernelsu.org/)
 [![SUSFS](https://img.shields.io/badge/SUSFS-Integrated-E67E22?style=flat-square)](https://gitlab.com/simonpunk/susfs4ksu)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/xingguangcuican6666/ABK)
 
 简体中文 | [English](README-EN.md)
 
 </div>
+
+## 支持我的工作
+
+如果你喜欢这个项目，欢迎在 Ko-fi 上为我点一杯咖啡喵
+
+[![Ko-fi](https://img.shields.io/badge/Ko--fi-F16061?style=for-the-badge&logo=ko-fi&logoColor=white)](https://ko-fi.com/xingguangcuican)
 
 ## 项目定位
 
@@ -237,9 +244,9 @@ App 编译工作流（`Build ABK App` / `Build ABK App (dev)`）通过仓库变�
 
 ## 贡献者
 
-以下列表按当前 git 历史统计，仅展示可识别的 GitHub 用户名/链接，并过滤自动化账号：
+以下列表按当前 git 历史归一化到可识别的 GitHub 用户名/链接，并按用户名排序；自动化账号与无法可靠映射的身份已过滤：
 
-[@TheWildJames](https://github.com/TheWildJames)、[@zzh20188](https://github.com/zzh20188)、[@xingguangcuican6666](https://github.com/xingguangcuican6666)、[@ShirkNeko](https://github.com/ShirkNeko)、[@huime180](https://github.com/huime180)、[@MiRinChan](https://github.com/MiRinChan)、[@FunLay123](https://github.com/FunLay123)、[@guruji-byte](https://github.com/guruji-byte)、[@Xiaomichael](https://github.com/Xiaomichael)、[@DreamFerry](https://github.com/DreamFerry)、[@liqideqq](https://github.com/liqideqq)、[@elysias123](https://github.com/elysias123)、[@Fede2782](https://github.com/Fede2782)、[@ReeViiS69](https://github.com/ReeViiS69)、[@TheSillyOk](https://github.com/TheSillyOk)、[@prpjzz](https://github.com/prpjzz)、[@ukriu](https://github.com/ukriu)、[@wrnxr233](https://github.com/wrnxr233)、[@Tools-cx-app](https://github.com/Tools-cx-app)、[@Akuma-Noko](https://github.com/Akuma-Noko)、[@DebugBoard](https://github.com/DebugBoard)、[@FixeQyt](https://github.com/FixeQyt)、[@LX200944](https://github.com/LX200944)、[@Starsun](https://github.com/Starsun)、[@yx1234587](https://github.com/yx1234587)。
+[@Akuma-Noko](https://github.com/Akuma-Noko)、[@DebugBoard](https://github.com/DebugBoard)、[@DreamFerry](https://github.com/DreamFerry)、[@elysias123](https://github.com/elysias123)、[@Fede2782](https://github.com/Fede2782)、[@FixeQyt](https://github.com/FixeQyt)、[@FunLay123](https://github.com/FunLay123)、[@gsf114](https://github.com/gsf114)、[@guruji-byte](https://github.com/guruji-byte)、[@huime180](https://github.com/huime180)、[@liqideqq](https://github.com/liqideqq)、[@LX200944](https://github.com/LX200944)、[@Mazha0309](https://github.com/Mazha0309)、[@MiRinChan](https://github.com/MiRinChan)、[@prpjzz](https://github.com/prpjzz)、[@ReeViiS69](https://github.com/ReeViiS69)、[@ShirkNeko](https://github.com/ShirkNeko)、[@Starsun](https://github.com/Starsun)、[@TheSillyOk](https://github.com/TheSillyOk)、[@TheWildJames](https://github.com/TheWildJames)、[@Tools-cx-app](https://github.com/Tools-cx-app)、[@ukriu](https://github.com/ukriu)、[@wrnxr233](https://github.com/wrnxr233)、[@Xiaomichael](https://github.com/Xiaomichael)、[@xingguangcuican6666](https://github.com/xingguangcuican6666)、[@yx1234587](https://github.com/yx1234587)、[@zzh20188](https://github.com/zzh20188)。
 
 ## 开放源代码许可
 
@@ -249,7 +256,7 @@ App 编译工作流（`Build ABK App` / `Build ABK App (dev)`）通过仓库变�
 
 | 组件 | 来源 | 许可证 |
 | --- | --- | --- |
-| AnyBase Kernel | [`LICENSE`](LICENSE) | GPL-2.0 |
+| AnyBase Kernel | [`LICENSE`](LICENSE) | GPL-3.0 |
 | ABK Control native bridge | `app/src/main/cpp/uapi/abk_control.h` | GPL-2.0 |
 | xingguang DDK module | `ddk/xingguang-ddk/xingguang_ddk.c` | GPL |
 | DDK kernel API patch | `ddk/patches/xingguang-ddk/0001-xingguang-ddk-api.patch` | GPL-2.0 |

@@ -4,6 +4,10 @@ import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.*
 import androidx.datastore.preferences.preferencesDataStore
+import com.abk.kernel.data.model.APP_UPDATE_LINE_NORMAL
+import com.abk.kernel.data.model.APP_UPDATE_STABILITY_STABLE
+import com.abk.kernel.data.model.normalizeAppUpdateLine
+import com.abk.kernel.data.model.normalizeAppUpdateStability
 import com.abk.kernel.utils.DownloadDirectoryUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -51,11 +55,18 @@ class PreferencesRepository(private val context: Context) {
         val KEY_DOWNLOAD_MIRROR_BASE_URL = stringPreferencesKey("download_mirror_base_url")
         val KEY_DOWNLOAD_DIRECTORY = stringPreferencesKey("download_directory")
         val KEY_PREBUILT_GKI_ENABLED = booleanPreferencesKey("prebuilt_gki_enabled")
+        val KEY_FORK_ARTIFACT_SIGNING_PUBLIC_KEY = stringPreferencesKey("fork_artifact_signing_public_key")
+        val KEY_FORK_ARTIFACT_SIGNING_RELEASE_TAG = stringPreferencesKey("fork_artifact_signing_release_tag")
+        val KEY_FORK_ARTIFACT_SIGNING_SECRET_NAME = stringPreferencesKey("fork_artifact_signing_secret_name")
+        val KEY_APP_UPDATE_STABILITY = stringPreferencesKey("app_update_stability")
+        val KEY_APP_UPDATE_LINE = stringPreferencesKey("app_update_line")
         val KEY_PREDICTIVE_BACK_ENABLED = booleanPreferencesKey("predictive_back_enabled")
         val KEY_RUNTIME_NAVIGATION_ENABLED = booleanPreferencesKey("runtime_navigation_enabled")
         val KEY_WEBVIEW_DEBUG_ENABLED = booleanPreferencesKey("webview_debug_enabled")
         val KEY_TERMS_ACCEPTED_VERSION = intPreferencesKey("terms_accepted_version")
         val KEY_FLASH_FILTER = stringPreferencesKey("flash_filter_json")
+        val KEY_GHOST_FAILED_RUNS = stringPreferencesKey("ghost_failed_runs_json")
+        val KEY_DISMISSED_GHOST_RUN_IDS = stringPreferencesKey("dismissed_ghost_run_ids_json")
         val KEY_OOBE_COMPLETED = booleanPreferencesKey("oobe_completed")
     }
 
@@ -99,6 +110,15 @@ class PreferencesRepository(private val context: Context) {
         DownloadDirectoryUtils.normalizeDirectoryPath(it[KEY_DOWNLOAD_DIRECTORY])
     }
     val prebuiltGkiEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_PREBUILT_GKI_ENABLED] ?: true }
+    val forkArtifactSigningPublicKey: Flow<String?> = context.dataStore.data.map { it[KEY_FORK_ARTIFACT_SIGNING_PUBLIC_KEY] }
+    val forkArtifactSigningReleaseTag: Flow<String?> = context.dataStore.data.map { it[KEY_FORK_ARTIFACT_SIGNING_RELEASE_TAG] }
+    val forkArtifactSigningSecretName: Flow<String?> = context.dataStore.data.map { it[KEY_FORK_ARTIFACT_SIGNING_SECRET_NAME] }
+    val appUpdateStability: Flow<String> = context.dataStore.data.map {
+        normalizeAppUpdateStability(it[KEY_APP_UPDATE_STABILITY] ?: APP_UPDATE_STABILITY_STABLE)
+    }
+    val appUpdateLine: Flow<String> = context.dataStore.data.map {
+        normalizeAppUpdateLine(it[KEY_APP_UPDATE_LINE] ?: APP_UPDATE_LINE_NORMAL)
+    }
     val predictiveBackEnabled: Flow<Boolean> = context.dataStore.data.map { it[KEY_PREDICTIVE_BACK_ENABLED] ?: true }
     val runtimeNavigationEnabled: Flow<Boolean> = context.dataStore.data.map {
         it[KEY_RUNTIME_NAVIGATION_ENABLED] ?: false
@@ -114,8 +134,16 @@ class PreferencesRepository(private val context: Context) {
         }
     }.getOrDefault(false)
 
+    fun readForkArtifactSigningPublicKeyBlocking(): String? = runCatching {
+        runBlocking(Dispatchers.IO) {
+            context.dataStore.data.first()[KEY_FORK_ARTIFACT_SIGNING_PUBLIC_KEY]
+        }
+    }.getOrNull()
+
     val termsAcceptedVersion: Flow<Int> = context.dataStore.data.map { it[KEY_TERMS_ACCEPTED_VERSION] ?: 0 }
     val flashFilterJson: Flow<String?> = context.dataStore.data.map { it[KEY_FLASH_FILTER] }
+    val ghostFailedRunsJson: Flow<String?> = context.dataStore.data.map { it[KEY_GHOST_FAILED_RUNS] }
+    val dismissedGhostRunIdsJson: Flow<String?> = context.dataStore.data.map { it[KEY_DISMISSED_GHOST_RUN_IDS] }
     val oobeCompleted: Flow<Boolean> = context.dataStore.data.map { it[KEY_OOBE_COMPLETED] ?: false }
 
     suspend fun saveToken(token: String) = context.dataStore.edit { it[KEY_ACCESS_TOKEN] = token }
@@ -197,6 +225,21 @@ class PreferencesRepository(private val context: Context) {
         }
     }
     suspend fun setPrebuiltGkiEnabled(v: Boolean) = context.dataStore.edit { it[KEY_PREBUILT_GKI_ENABLED] = v }
+    suspend fun saveForkArtifactSigningPublicKey(value: String) = context.dataStore.edit {
+        it[KEY_FORK_ARTIFACT_SIGNING_PUBLIC_KEY] = value
+    }
+    suspend fun saveForkArtifactSigningReleaseTag(value: String) = context.dataStore.edit {
+        it[KEY_FORK_ARTIFACT_SIGNING_RELEASE_TAG] = value
+    }
+    suspend fun saveForkArtifactSigningSecretName(value: String) = context.dataStore.edit {
+        it[KEY_FORK_ARTIFACT_SIGNING_SECRET_NAME] = value
+    }
+    suspend fun setAppUpdateStability(value: String) = context.dataStore.edit {
+        it[KEY_APP_UPDATE_STABILITY] = normalizeAppUpdateStability(value)
+    }
+    suspend fun setAppUpdateLine(value: String) = context.dataStore.edit {
+        it[KEY_APP_UPDATE_LINE] = normalizeAppUpdateLine(value)
+    }
     suspend fun setPredictiveBackEnabled(v: Boolean) = context.dataStore.edit { it[KEY_PREDICTIVE_BACK_ENABLED] = v }
     suspend fun setRuntimeNavigationEnabled(v: Boolean) = context.dataStore.edit {
         it[KEY_RUNTIME_NAVIGATION_ENABLED] = v
@@ -208,6 +251,10 @@ class PreferencesRepository(private val context: Context) {
         it[KEY_TERMS_ACCEPTED_VERSION] = CURRENT_TERMS_VERSION
     }
     suspend fun saveFlashFilterJson(json: String) = context.dataStore.edit { it[KEY_FLASH_FILTER] = json }
+    suspend fun saveGhostStateJson(ghostsJson: String, dismissedIdsJson: String) = context.dataStore.edit {
+        it[KEY_GHOST_FAILED_RUNS] = ghostsJson
+        it[KEY_DISMISSED_GHOST_RUN_IDS] = dismissedIdsJson
+    }
     suspend fun setOobeCompleted(v: Boolean) = context.dataStore.edit {
         it[KEY_OOBE_COMPLETED] = v
     }

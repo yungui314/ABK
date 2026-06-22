@@ -208,6 +208,7 @@ data class GitHubRelease(
     @SerializedName("published_at") val publishedAt: String? = null,
     val body: String? = null,
     @SerializedName("assets_url") val assetsUrl: String? = null,
+    @SerializedName("upload_url") val uploadUrl: String? = null,
     val assets: List<ReleaseAsset> = emptyList()
 )
 
@@ -253,6 +254,86 @@ data class PrebuiltGkiRelease(
     val assetCount: Int = 0
 )
 
+const val APP_UPDATE_STABILITY_STABLE = "stable"
+const val APP_UPDATE_STABILITY_UNSTABLE = "unstable"
+const val APP_UPDATE_LINE_NORMAL = "normal"
+const val APP_UPDATE_LINE_DEV = "dev"
+
+val APP_UPDATE_STABILITY_OPTIONS = listOf(
+    APP_UPDATE_STABILITY_STABLE,
+    APP_UPDATE_STABILITY_UNSTABLE,
+)
+
+val APP_UPDATE_LINE_OPTIONS = listOf(
+    APP_UPDATE_LINE_NORMAL,
+    APP_UPDATE_LINE_DEV,
+)
+
+data class AppUpdateMetadata(
+    val stable: AppUpdateChannelEntries = AppUpdateChannelEntries(),
+    val unstable: AppUpdateChannelEntries = AppUpdateChannelEntries()
+) {
+    fun entryFor(stability: String, line: String): AppUpdateEntry? {
+        val normalizedStability = normalizeAppUpdateStability(stability)
+        val normalizedLine = normalizeAppUpdateLine(line)
+        val channel = when (normalizedStability) {
+            APP_UPDATE_STABILITY_UNSTABLE -> unstable
+            else -> stable
+        }
+        return when (normalizedLine) {
+            APP_UPDATE_LINE_DEV -> channel.dev
+            else -> channel.normal
+        }
+    }
+}
+
+data class AppUpdateChannelEntries(
+    val normal: AppUpdateEntry? = null,
+    val dev: AppUpdateEntry? = null
+)
+
+data class AppUpdateEntry(
+    val versionName: String = "",
+    val versionCode: Long = 0L,
+    val downloadUrl: String = "",
+    val publishedAt: String = "",
+    val buildTimestampEpochMillis: Long = 0L,
+    val sourceWorkflow: String = "",
+    val commitSha: String = "",
+    val runId: Long = 0L
+)
+
+data class AppUpdateCheckResult(
+    val stability: String,
+    val line: String,
+    val currentVersionName: String,
+    val currentVersionCode: Long,
+    val currentBuildTimestampEpochMillis: Long,
+    val remote: AppUpdateEntry,
+    val hasUpdate: Boolean
+)
+
+fun normalizeAppUpdateStability(value: String): String = when (value.trim().lowercase()) {
+    APP_UPDATE_STABILITY_UNSTABLE -> APP_UPDATE_STABILITY_UNSTABLE
+    else -> APP_UPDATE_STABILITY_STABLE
+}
+
+fun normalizeAppUpdateLine(value: String): String = when (value.trim().lowercase()) {
+    APP_UPDATE_LINE_DEV -> APP_UPDATE_LINE_DEV
+    else -> APP_UPDATE_LINE_NORMAL
+}
+
+fun shouldOfferAppUpdate(
+    remote: AppUpdateEntry,
+    currentVersionCode: Long,
+    currentBuildTimestampEpochMillis: Long
+): Boolean = when {
+    remote.versionCode > currentVersionCode -> true
+    remote.versionCode < currentVersionCode -> false
+    remote.buildTimestampEpochMillis > currentBuildTimestampEpochMillis -> true
+    else -> false
+}
+
 // GitHub Device Flow OAuth
 data class DeviceCodeResponse(
     @SerializedName("device_code") val deviceCode: String,
@@ -268,6 +349,37 @@ data class AccessTokenResponse(
     @SerializedName("scope") val scope: String?,
     val error: String?,
     @SerializedName("error_description") val errorDescription: String?
+)
+
+data class GitHubSecretPublicKey(
+    @SerializedName("key_id") val keyId: String,
+    @SerializedName("key") val key: String
+)
+
+data class GitHubRepositorySecret(
+    val name: String,
+    @SerializedName("created_at") val createdAt: String? = null,
+    @SerializedName("updated_at") val updatedAt: String? = null
+)
+
+data class GitHubRepositorySecretsResponse(
+    @SerializedName("total_count") val totalCount: Int,
+    @SerializedName("secrets") val secrets: List<GitHubRepositorySecret> = emptyList()
+)
+
+data class CreateOrUpdateRepositorySecretRequest(
+    @SerializedName("encrypted_value") val encryptedValue: String,
+    @SerializedName("key_id") val keyId: String
+)
+
+data class CreateReleaseRequest(
+    @SerializedName("tag_name") val tagName: String,
+    @SerializedName("target_commitish") val targetCommitish: String? = null,
+    val name: String? = null,
+    val body: String? = null,
+    val draft: Boolean = false,
+    val prerelease: Boolean = true,
+    @SerializedName("generate_release_notes") val generateReleaseNotes: Boolean = false
 )
 
 data class Workflow(
@@ -299,22 +411,72 @@ object CustomExternalModuleStage {
 
 data class CustomExternalModule(
     val url: String = "",
-    val stage: String = CustomExternalModuleStage.AFTER_PATCH
+    val stage: String = CustomExternalModuleStage.AFTER_PATCH,
+    val entryKind: String = CustomExternalModuleEntryKind.MODULE,
+    val groupRepoUrl: String = "",
+    val childId: String = "",
+    val childName: String = "",
+    val groupId: String = "",
+    val groupName: String = "",
+    val groupRole: String = "",
+    val groupDescription: String = ""
+)
+
+object CustomExternalModuleEntryKind {
+    const val MODULE = "module"
+    const val MODULE_SET_CHILD = "module_set_child"
+
+    fun normalize(value: String?): String = when (value?.trim()?.lowercase()) {
+        MODULE_SET_CHILD, "set", "module_set", "module-set", "group_child" -> MODULE_SET_CHILD
+        else -> MODULE
+    }
+}
+
+object ModuleCatalogItemKind {
+    const val MODULE = "module"
+    const val MODULE_SET = "module_set"
+
+    fun normalize(value: String?): String = when (value?.trim()?.lowercase()) {
+        MODULE_SET, "set", "module-set", "moduleset" -> MODULE_SET
+        else -> MODULE
+    }
+}
+
+data class ModuleSetChildMetadata(
+    val id: String = "",
+    val name: String = "",
+    val description: String = "",
+    val repoUrl: String = "",
+    val supportedStages: List<String> = CustomExternalModuleStage.options,
+    val defaultStage: String = CustomExternalModuleStage.AFTER_PATCH,
+    val recommendedStages: List<String> = listOf(CustomExternalModuleStage.AFTER_PATCH),
+    val groupRole: String = "",
+    val controllable: Boolean = false,
+    val hasWebUi: Boolean = false,
+    val magiskModuleName: String = "",
+    val magiskModuleDownloadUrl: String = ""
 )
 
 data class ExternalModuleMetadata(
     val name: String,
     val version: String = "",
     val description: String = "",
+    val kind: String = ModuleCatalogItemKind.MODULE,
+    val moduleSetId: String = "",
     val supportedStages: List<String> = CustomExternalModuleStage.options,
     val defaultStage: String = CustomExternalModuleStage.AFTER_PATCH,
-    val recommendedStages: List<String> = listOf(CustomExternalModuleStage.AFTER_PATCH)
+    val recommendedStages: List<String> = listOf(CustomExternalModuleStage.AFTER_PATCH),
+    val children: List<ModuleSetChildMetadata> = emptyList(),
+    val magiskModuleName: String = "",
+    val magiskModuleDownloadUrl: String = ""
 )
 
 data class ModuleCatalogItem(
     val name: String = "",
     val version: String = "",
     val description: String = "",
+    val kind: String = ModuleCatalogItemKind.MODULE,
+    val moduleSetId: String = "",
     val repoUrl: String = "",
     val defaultStage: String = CustomExternalModuleStage.AFTER_PATCH,
     val supportedStages: List<String> = listOf(CustomExternalModuleStage.AFTER_PATCH),
@@ -453,7 +615,8 @@ data class AbkRuntimeStatus(
     val manager: AbkRuntimeManagerInfo? = null,
     @SerializedName("runtime_backend") val runtimeBackend: AbkRuntimeManagerInfo? = null,
     val build: AbkRuntimeBuildInfo? = null,
-    val modules: List<AbkRuntimeModule> = emptyList()
+    val modules: List<AbkRuntimeModule> = emptyList(),
+    @SerializedName("extension_modules") val extensionModules: List<AbkRuntimeModule> = emptyList()
 )
 
 data class AbkRuntimeManagerInfo(
@@ -491,7 +654,14 @@ data class AbkRuntimeModule(
     val description: String = "",
     @SerializedName("repo_url") val repoUrl: String = "",
     val stage: String = "",
+    @SerializedName("entry_kind") val entryKind: String = "",
     val source: String = "",
+    @SerializedName("extension_id") val extensionId: String = "",
+    @SerializedName("companion_package") val companionPackage: String = "",
+    @SerializedName("companion_display_name") val companionDisplayName: String = "",
+    @SerializedName("companion_asset_name") val companionAssetName: String = "",
+    @SerializedName("companion_download_url") val companionDownloadUrl: String = "",
+    @SerializedName("service_activity") val serviceActivity: String = "",
     @SerializedName("module_dir") val moduleDir: String = "",
     @SerializedName("web_root") val webRoot: String = "",
     val readonly: Boolean = false,
@@ -502,7 +672,16 @@ data class AbkRuntimeModule(
     @SerializedName("has_web_ui") val hasWebUi: Boolean = false,
     @SerializedName("has_action_script") val hasActionScript: Boolean = false,
     @SerializedName("action_supported") val actionSupported: Boolean = false,
-    @SerializedName("kpm_args") val kpmArgs: String = ""
+    @SerializedName("requires_companion_app") val requiresCompanionApp: Boolean = false,
+    @SerializedName("settings_supported") val settingsSupported: Boolean = false,
+    @SerializedName("per_app_supported") val perAppSupported: Boolean = false,
+    @SerializedName("oobe_priority") val oobePriority: Int = 0,
+    @SerializedName("kpm_args") val kpmArgs: String = "",
+    @SerializedName("group_id") val groupId: String = "",
+    @SerializedName("group_name") val groupName: String = "",
+    @SerializedName("group_role") val groupRole: String = "",
+    @SerializedName("group_description") val groupDescription: String = "",
+    @SerializedName("group_repo_url") val groupRepoUrl: String = ""
 )
 
 enum class ManagerSettingKind {
@@ -610,6 +789,10 @@ data class DownloadedArtifact(
     val runId: Long = -1L,
     val runTitle: String = "",
     val runNumber: Int = 0,
+    val sourceAssetId: Long = 0L,
+    val sourceAssetName: String? = null,
+    val verified: Boolean = false,
+    val verificationSummary: String? = null,
     val category: ArtifactCategory = type.toArtifactCategory()
 )
 
@@ -693,6 +876,17 @@ fun WorkflowRun.isManagerBuild(): Boolean {
 fun WorkflowRun.isPureManagerBuild(): Boolean =
     isManagerBuild() && !isKernelBuild()
 
+/** ABK app workflow only (Build ABK App / Build ABK App Dev). */
+fun WorkflowRun.isAbkManagerBuild(): Boolean {
+    val workflowName = name.orEmpty().lowercase()
+    val lower = "${name.orEmpty()} ${displayTitle.orEmpty()}".lowercase()
+    if (lower.hasUtilityWorkflowSignal()) return false
+    if (workflowName.hasAbkManagerBuildSignal()) return true
+    if (workflowName.hasKernelBuildSignal()) return false
+    if (lower.hasKernelBuildSignal()) return false
+    return lower.hasAbkManagerBuildSignal()
+}
+
 /**
  * Dev manager workflow (e.g. Build ABK App Dev). Uses workflow [name] only — not
  * [WorkflowRun.displayTitle]. Avoids bare `"dev" in text` so "device" does not match.
@@ -719,8 +913,12 @@ private val MANAGER_DEV_WORKFLOW_NAME_MARKERS = listOf(
 private val MANAGER_DEV_NAME_TOKEN =
     Regex("""(^|[\s_.-])dev($|[\s_.-]|\.apk)""", RegexOption.IGNORE_CASE)
 
-private fun String.hasManagerBuildSignal(): Boolean =
+private fun String.hasAbkManagerBuildSignal(): Boolean =
     "abk app" in this || "abk-app" in this ||
+        "build abk app" in this
+
+private fun String.hasManagerBuildSignal(): Boolean =
+    hasAbkManagerBuildSignal() ||
         "build app" in this || "build-app" in this ||
         "debug apk" in this ||
         "manager" in this || "ksu manager" in this || "sukisu manager" in this ||
